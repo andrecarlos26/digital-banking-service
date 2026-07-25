@@ -4,23 +4,31 @@ import br.com.di2win.digitalaccount.account.api.dto.AccountResponse;
 import br.com.di2win.digitalaccount.account.api.dto.BalanceResponse;
 import br.com.di2win.digitalaccount.account.api.dto.CreateAccountRequest;
 import br.com.di2win.digitalaccount.account.api.dto.MoneyOperationRequest;
+import br.com.di2win.digitalaccount.account.api.dto.StatementResponse;
 import br.com.di2win.digitalaccount.account.api.dto.TransactionResponse;
 import br.com.di2win.digitalaccount.account.service.AccountService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/v1/accounts")
+@Validated
 public class AccountController {
 
     private final AccountService accountService;
@@ -73,5 +81,16 @@ public class AccountController {
             @Valid @RequestBody MoneyOperationRequest request
     ) {
         return accountService.withdraw(accountNumber, request);
+    }
+
+    @GetMapping("/{accountNumber}/statement")
+    public StatementResponse statement(
+            @PathVariable String accountNumber,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size
+    ) {
+        return accountService.statement(accountNumber, startDate, endDate, page, size);
     }
 }

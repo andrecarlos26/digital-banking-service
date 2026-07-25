@@ -1,12 +1,16 @@
 package br.com.di2win.digitalaccount.common.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -43,6 +47,22 @@ public class GlobalExceptionHandler {
                 "Dados inválidos", "Um ou mais campos são inválidos.", request, errors);
     }
 
+    @ExceptionHandler(ConstraintViolationException.class)
+    ResponseEntity<ProblemDetail> handleConstraintViolation(
+            ConstraintViolationException exception,
+            HttpServletRequest request
+    ) {
+        List<Map<String, String>> errors = exception.getConstraintViolations().stream()
+                .map(violation -> Map.of(
+                        "field", violation.getPropertyPath().toString(),
+                        "message", violation.getMessage()
+                ))
+                .toList();
+
+        return build(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_ERROR,
+                "Parâmetros inválidos", "Um ou mais parâmetros são inválidos.", request, errors);
+    }
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
     ResponseEntity<ProblemDetail> handleMalformedJson(
             HttpMessageNotReadableException exception,
@@ -50,6 +70,16 @@ public class GlobalExceptionHandler {
     ) {
         return build(HttpStatus.BAD_REQUEST, ErrorCode.MALFORMED_JSON,
                 "JSON inválido", "O corpo da requisição não pôde ser interpretado.", request, null);
+    }
+
+    @ExceptionHandler({
+            MissingServletRequestParameterException.class,
+            MethodArgumentTypeMismatchException.class,
+            HandlerMethodValidationException.class
+    })
+    ResponseEntity<ProblemDetail> handleRequestParameter(Exception exception, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_ERROR,
+                "Parâmetros inválidos", "Um ou mais parâmetros da requisição são inválidos.", request, null);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
