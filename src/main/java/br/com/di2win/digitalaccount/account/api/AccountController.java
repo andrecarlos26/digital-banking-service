@@ -3,6 +3,8 @@ package br.com.di2win.digitalaccount.account.api;
 import br.com.di2win.digitalaccount.account.api.dto.AccountResponse;
 import br.com.di2win.digitalaccount.account.api.dto.BalanceResponse;
 import br.com.di2win.digitalaccount.account.api.dto.CreateAccountRequest;
+import br.com.di2win.digitalaccount.account.api.dto.MoneyOperationRequest;
+import br.com.di2win.digitalaccount.account.api.dto.TransactionResponse;
 import br.com.di2win.digitalaccount.account.service.AccountService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -55,5 +57,13 @@ public class AccountController {
     @PatchMapping("/{accountNumber}/unblock")
     public AccountResponse unblock(@PathVariable String accountNumber) {
         return accountService.unblock(accountNumber);
+    }
+
+    @PostMapping("/{accountNumber}/deposits")
+    public TransactionResponse deposit(
+            @PathVariable String accountNumber,
+            @Valid @RequestBody MoneyOperationRequest request
+    ) {
+        return accountService.deposit(accountNumber, request);
     }
 }

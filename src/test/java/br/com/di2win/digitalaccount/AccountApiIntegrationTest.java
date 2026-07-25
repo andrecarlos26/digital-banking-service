@@ -1,5 +1,6 @@
 package br.com.di2win.digitalaccount;
 
+import br.com.di2win.digitalaccount.account.repository.AccountTransactionRepository;
 import br.com.di2win.digitalaccount.account.repository.DigitalAccountRepository;
 import br.com.di2win.digitalaccount.customer.repository.CustomerRepository;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -38,6 +39,9 @@ class AccountApiIntegrationTest {
     private JdbcTemplate jdbcTemplate;
 
     @Autowired
+    private AccountTransactionRepository transactionRepository;
+
+    @Autowired
     private DigitalAccountRepository accountRepository;
 
     @Autowired
@@ -45,6 +49,7 @@ class AccountApiIntegrationTest {
 
     @BeforeEach
     void cleanDatabase() {
+        transactionRepository.deleteAll();
         accountRepository.deleteAll();
         customerRepository.deleteAll();
     }
@@ -183,6 +188,119 @@ class AccountApiIntegrationTest {
         mockMvc.perform(get("/api/v1/accounts/{number}", account.number()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ACTIVE"));
+    }
+
+    @Test
+    void shouldDepositAndUpdateAccountBalance() throws Exception {
+        TestAccount account = createAccount("862.883.667-57", "Cliente Depósito");
+
+        mockMvc.perform(post("/api/v1/accounts/{number}/deposits", account.number())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "amount": 1250.00,
+                                  "description": "  Depósito   inicial  "
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.transactionId").exists())
+                .andExpect(jsonPath("$.accountNumber").value(account.number()))
+                .andExpect(jsonPath("$.type").value("DEPOSIT"))
+                .andExpect(jsonPath("$.amount").value(1250.00))
+                .andExpect(jsonPath("$.balanceAfter").value(1250.00))
+                .andExpect(jsonPath("$.currency").value("BRL"))
+                .andExpect(jsonPath("$.description").value("Depósito inicial"))
+                .andExpect(jsonPath("$.occurredAt").exists());
+
+        mockMvc.perform(get("/api/v1/accounts/{number}/balance", account.number()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.balance").value(1250.00));
+
+        org.assertj.core.api.Assertions.assertThat(transactionRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void shouldAccumulateMultipleDeposits() throws Exception {
+        TestAccount account = createAccount("529.982.247-25", "Cliente Acúmulo");
+
+        deposit(account.number(), "100.50");
+        deposit(account.number(), "49.50");
+
+        mockMvc.perform(get("/api/v1/accounts/{number}/balance", account.number()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.balance").value(150.00));
+
+        org.assertj.core.api.Assertions.assertThat(transactionRepository.count()).isEqualTo(2);
+    }
+
+    @Test
+    void shouldRejectDepositsForBlockedAndClosedAccounts() throws Exception {
+        TestAccount blockedAccount = createAccount("153.509.460-56", "Cliente Bloqueado");
+
+        mockMvc.perform(patch("/api/v1/accounts/{number}/block", blockedAccount.number()))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/accounts/{number}/deposits", blockedAccount.number())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":100.00}"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("ACCOUNT_BLOCKED"));
+
+        TestAccount closedAccount = createAccount("280.012.389-38", "Cliente Encerrado");
+        mockMvc.perform(delete("/api/v1/customers/{id}", closedAccount.customerId()))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(post("/api/v1/accounts/{number}/deposits", closedAccount.number())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":100.00}"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("ACCOUNT_INACTIVE"));
+    }
+
+    @Test
+    void shouldValidateDepositRequest() throws Exception {
+        TestAccount account = createAccount("111.444.777-35", "Cliente Validação");
+
+        mockMvc.perform(post("/api/v1/accounts/{number}/deposits", account.number())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":0}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+        mockMvc.perform(post("/api/v1/accounts/{number}/deposits", account.number())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":-10.00}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+        mockMvc.perform(post("/api/v1/accounts/{number}/deposits", account.number())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":10.999}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+        String longDescription = "a".repeat(121);
+        mockMvc.perform(post("/api/v1/accounts/{number}/deposits", account.number())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":10.00,\"description\":\"%s\"}".formatted(longDescription)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenDepositingIntoUnknownAccount() throws Exception {
+        mockMvc.perform(post("/api/v1/accounts/{number}/deposits", "99999999")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":100.00}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_FOUND"));
+    }
+
+    private void deposit(String accountNumber, String amount) throws Exception {
+        mockMvc.perform(post("/api/v1/accounts/{number}/deposits", accountNumber)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":%s}".formatted(amount)))
+                .andExpect(status().isOk());
     }
 
     private TestAccount createAccount(String cpf, String name) throws Exception {
