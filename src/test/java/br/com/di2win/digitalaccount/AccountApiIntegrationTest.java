@@ -296,8 +296,118 @@ class AccountApiIntegrationTest {
                 .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_FOUND"));
     }
 
+    @Test
+    void shouldWithdrawAndUpdateAccountBalance() throws Exception {
+        TestAccount account = createAccount("123.456.789-09", "Cliente Saque");
+        deposit(account.number(), "1500.00");
+
+        mockMvc.perform(post("/api/v1/accounts/{number}/withdrawals", account.number())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "amount": 400.00,
+                                  "description": "  Saque   em caixa  "
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.transactionId").exists())
+                .andExpect(jsonPath("$.accountNumber").value(account.number()))
+                .andExpect(jsonPath("$.type").value("WITHDRAWAL"))
+                .andExpect(jsonPath("$.amount").value(400.00))
+                .andExpect(jsonPath("$.balanceAfter").value(1100.00))
+                .andExpect(jsonPath("$.currency").value("BRL"))
+                .andExpect(jsonPath("$.description").value("Saque em caixa"))
+                .andExpect(jsonPath("$.occurredAt").exists());
+
+        mockMvc.perform(get("/api/v1/accounts/{number}/balance", account.number()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.balance").value(1100.00));
+
+        org.assertj.core.api.Assertions.assertThat(transactionRepository.count()).isEqualTo(2);
+    }
+
+    @Test
+    void shouldRejectWithdrawalWhenBalanceIsInsufficient() throws Exception {
+        TestAccount account = createAccount("987.654.321-00", "Cliente Sem Saldo");
+        deposit(account.number(), "100.00");
+
+        mockMvc.perform(post("/api/v1/accounts/{number}/withdrawals", account.number())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":100.01}"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("INSUFFICIENT_FUNDS"));
+
+        mockMvc.perform(get("/api/v1/accounts/{number}/balance", account.number()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.balance").value(100.00));
+
+        org.assertj.core.api.Assertions.assertThat(transactionRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void shouldEnforceAccumulatedDailyWithdrawalLimit() throws Exception {
+        TestAccount account = createAccount("741.852.963-55", "Cliente Limite Diário");
+        deposit(account.number(), "3000.00");
+
+        withdraw(account.number(), "1500.00");
+        withdraw(account.number(), "500.00");
+
+        mockMvc.perform(post("/api/v1/accounts/{number}/withdrawals", account.number())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":0.01}"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("DAILY_WITHDRAWAL_LIMIT_EXCEEDED"));
+
+        mockMvc.perform(get("/api/v1/accounts/{number}/balance", account.number()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.balance").value(1000.00));
+
+        org.assertj.core.api.Assertions.assertThat(transactionRepository.count()).isEqualTo(3);
+    }
+
+    @Test
+    void shouldRejectWithdrawalsForBlockedAndClosedAccounts() throws Exception {
+        TestAccount blockedAccount = createAccount("321.654.987-91", "Cliente Saque Bloqueado");
+        deposit(blockedAccount.number(), "100.00");
+
+        mockMvc.perform(patch("/api/v1/accounts/{number}/block", blockedAccount.number()))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/accounts/{number}/withdrawals", blockedAccount.number())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":10.00}"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("ACCOUNT_BLOCKED"));
+
+        TestAccount closedAccount = createAccount("456.789.123-64", "Cliente Saque Encerrado");
+        mockMvc.perform(delete("/api/v1/customers/{id}", closedAccount.customerId()))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(post("/api/v1/accounts/{number}/withdrawals", closedAccount.number())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":10.00}"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("ACCOUNT_INACTIVE"));
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenWithdrawingFromUnknownAccount() throws Exception {
+        mockMvc.perform(post("/api/v1/accounts/{number}/withdrawals", "99999999")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":100.00}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_FOUND"));
+    }
+
     private void deposit(String accountNumber, String amount) throws Exception {
         mockMvc.perform(post("/api/v1/accounts/{number}/deposits", accountNumber)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":%s}".formatted(amount)))
+                .andExpect(status().isOk());
+    }
+
+    private void withdraw(String accountNumber, String amount) throws Exception {
+        mockMvc.perform(post("/api/v1/accounts/{number}/withdrawals", accountNumber)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"amount\":%s}".formatted(amount)))
                 .andExpect(status().isOk());
