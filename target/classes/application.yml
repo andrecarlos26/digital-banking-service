@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: di2win-digital-account-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/di2win_accounts}
+    username: ${DB_USERNAME:di2win}
+    password: ${DB_PASSWORD:di2win}
+    hikari:
+      maximum-pool-size: ${DB_MAX_POOL_SIZE:10}
+      minimum-idle: ${DB_MIN_IDLE:2}
+      connection-timeout: 30000
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        format_sql: false
+  flyway:
+    enabled: true
+  jackson:
+    default-property-inclusion: non_null
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+  error:
+    include-message: never
+    include-stacktrace: never
+
+di2win:
+  account:
+    agency: ${ACCOUNT_AGENCY:0001}
+    daily-withdrawal-limit: ${DAILY_WITHDRAWAL_LIMIT:2000.00}
+    business-timezone: ${BUSINESS_TIMEZONE:America/Sao_Paulo}
