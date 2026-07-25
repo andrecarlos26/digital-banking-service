@@ -10,11 +10,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.matchesPattern;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -30,6 +33,9 @@ class AccountApiIntegrationTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Autowired
     private DigitalAccountRepository accountRepository;
@@ -120,6 +126,75 @@ class AccountApiIntegrationTest {
                 .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_FOUND"));
     }
 
+    @Test
+    void shouldBlockAndUnblockAccountIdempotently() throws Exception {
+        TestAccount account = createAccount("935.411.347-80", "Cliente Bloqueio");
+
+        mockMvc.perform(patch("/api/v1/accounts/{number}/block", account.number()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.blocked").value(true));
+
+        mockMvc.perform(patch("/api/v1/accounts/{number}/block", account.number()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.blocked").value(true));
+
+        mockMvc.perform(patch("/api/v1/accounts/{number}/unblock", account.number()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.blocked").value(false));
+
+        mockMvc.perform(patch("/api/v1/accounts/{number}/unblock", account.number()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.blocked").value(false));
+    }
+
+    @Test
+    void shouldCloseZeroBalanceAccountWhenCustomerIsDeleted() throws Exception {
+        TestAccount account = createAccount("390.533.447-05", "Cliente Encerramento");
+
+        mockMvc.perform(delete("/api/v1/customers/{id}", account.customerId()))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/customers/{id}", account.customerId()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("CUSTOMER_NOT_FOUND"));
+
+        mockMvc.perform(get("/api/v1/accounts/{number}", account.number()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CLOSED"))
+                .andExpect(jsonPath("$.blocked").value(true));
+
+        mockMvc.perform(patch("/api/v1/accounts/{number}/unblock", account.number()))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("ACCOUNT_INACTIVE"));
+    }
+
+    @Test
+    void shouldRejectCustomerDeletionWhenAccountHasPositiveBalance() throws Exception {
+        TestAccount account = createAccount("168.995.350-09", "Cliente Com Saldo");
+        jdbcTemplate.update("update accounts set balance = 100.00 where number = ?", account.number());
+
+        mockMvc.perform(delete("/api/v1/customers/{id}", account.customerId()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CUSTOMER_HAS_POSITIVE_BALANCE"));
+
+        mockMvc.perform(get("/api/v1/customers/{id}", account.customerId()))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/accounts/{number}", account.number()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ACTIVE"));
+    }
+
+    private TestAccount createAccount(String cpf, String name) throws Exception {
+        String customerId = createCustomer(cpf, name);
+        String response = mockMvc.perform(post("/api/v1/accounts")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"cpf\":\"%s\"}".formatted(cpf)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        return new TestAccount(customerId, objectMapper.readTree(response).get("number").asText());
+    }
+
     private String createCustomer(String cpf, String name) throws Exception {
         String response = mockMvc.perform(post("/api/v1/customers")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -129,5 +204,8 @@ class AccountApiIntegrationTest {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         return objectMapper.readTree(response).get("id").asText();
+    }
+
+    private record TestAccount(String customerId, String number) {
     }
 }

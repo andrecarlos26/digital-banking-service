@@ -7,6 +7,7 @@ import br.com.di2win.digitalaccount.account.service.AccountService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -44,5 +45,15 @@ public class AccountController {
     @GetMapping("/{accountNumber}/balance")
     public BalanceResponse balance(@PathVariable String accountNumber) {
         return accountService.balance(accountNumber);
+    }
+
+    @PatchMapping("/{accountNumber}/block")
+    public AccountResponse block(@PathVariable String accountNumber) {
+        return accountService.block(accountNumber);
+    }
+
+    @PatchMapping("/{accountNumber}/unblock")
+    public AccountResponse unblock(@PathVariable String accountNumber) {
+        return accountService.unblock(accountNumber);
     }
 }

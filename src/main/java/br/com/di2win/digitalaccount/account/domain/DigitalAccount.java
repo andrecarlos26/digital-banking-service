@@ -1,5 +1,7 @@
 package br.com.di2win.digitalaccount.account.domain;
 
+import br.com.di2win.digitalaccount.common.exception.ApiException;
+import br.com.di2win.digitalaccount.common.exception.ErrorCode;
 import br.com.di2win.digitalaccount.customer.domain.Customer;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -11,6 +13,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import org.springframework.http.HttpStatus;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -70,6 +73,35 @@ public class DigitalAccount {
         this.version = 0L;
         this.createdAt = now;
         this.updatedAt = now;
+    }
+
+    public void block(Instant now) {
+        ensureActive();
+        blocked = true;
+        updatedAt = now;
+    }
+
+    public void unblock(Instant now) {
+        ensureActive();
+        blocked = false;
+        updatedAt = now;
+    }
+
+    public void close(Instant now) {
+        if (balance.signum() > 0) {
+            throw new IllegalStateException("An account with a positive balance cannot be closed");
+        }
+        status = AccountStatus.CLOSED;
+        blocked = true;
+        closedAt = now;
+        updatedAt = now;
+    }
+
+    private void ensureActive() {
+        if (status != AccountStatus.ACTIVE) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, ErrorCode.ACCOUNT_INACTIVE,
+                    "Conta inativa", "A conta não está ativa.");
+        }
     }
 
     public UUID getId() {
