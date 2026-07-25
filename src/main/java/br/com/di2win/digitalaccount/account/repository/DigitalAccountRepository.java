@@ -21,4 +21,8 @@ public interface DigitalAccountRepository extends JpaRepository<DigitalAccount, 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select a from DigitalAccount a where a.number = :number")
     Optional<DigitalAccount> findByNumberForUpdate(@Param("number") String number);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select a from DigitalAccount a where a.customer.id = :customerId")
+    Optional<DigitalAccount> findByCustomerIdForUpdate(@Param("customerId") UUID customerId);
 }

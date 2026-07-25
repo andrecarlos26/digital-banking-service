@@ -19,6 +19,10 @@ public interface CustomerRepository extends JpaRepository<Customer, UUID> {
     Optional<Customer> findByIdAndActiveTrue(UUID id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from Customer c where c.id = :id and c.active = true")
+    Optional<Customer> findActiveByIdForUpdate(@Param("id") UUID id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from Customer c where c.cpf = :cpf and c.active = true")
     Optional<Customer> findActiveByCpfForUpdate(@Param("cpf") String cpf);
 }
