@@ -15,6 +15,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
+
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -395,6 +398,128 @@ class AccountApiIntegrationTest {
         mockMvc.perform(post("/api/v1/accounts/{number}/withdrawals", "99999999")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"amount\":100.00}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_FOUND"));
+    }
+
+    @Test
+    void shouldReturnStatementForPeriod() throws Exception {
+        TestAccount account = createAccount("246.813.579-28", "Cliente Extrato");
+        deposit(account.number(), "1000.00");
+        withdraw(account.number(), "250.00");
+        LocalDate today = LocalDate.now(ZoneId.of("America/Sao_Paulo"));
+
+        mockMvc.perform(get("/api/v1/accounts/{number}/statement", account.number())
+                        .queryParam("startDate", today.toString())
+                        .queryParam("endDate", today.toString())
+                        .queryParam("page", "0")
+                        .queryParam("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accountNumber").value(account.number()))
+                .andExpect(jsonPath("$.agency").value("0001"))
+                .andExpect(jsonPath("$.currency").value("BRL"))
+                .andExpect(jsonPath("$.startDate").value(today.toString()))
+                .andExpect(jsonPath("$.endDate").value(today.toString()))
+                .andExpect(jsonPath("$.openingBalance").value(0.00))
+                .andExpect(jsonPath("$.totalDeposits").value(1000.00))
+                .andExpect(jsonPath("$.totalWithdrawals").value(250.00))
+                .andExpect(jsonPath("$.closingBalance").value(750.00))
+                .andExpect(jsonPath("$.currentBalance").value(750.00))
+                .andExpect(jsonPath("$.generatedAt").exists())
+                .andExpect(jsonPath("$.page.number").value(0))
+                .andExpect(jsonPath("$.page.size").value(20))
+                .andExpect(jsonPath("$.page.totalElements").value(2))
+                .andExpect(jsonPath("$.page.totalPages").value(1))
+                .andExpect(jsonPath("$.page.first").value(true))
+                .andExpect(jsonPath("$.page.last").value(true))
+                .andExpect(jsonPath("$.transactions.length()").value(2));
+    }
+
+    @Test
+    void shouldPaginateStatementTransactions() throws Exception {
+        TestAccount account = createAccount("135.792.468-28", "Cliente Paginação");
+        deposit(account.number(), "100.00");
+        deposit(account.number(), "50.00");
+        withdraw(account.number(), "25.00");
+        LocalDate today = LocalDate.now(ZoneId.of("America/Sao_Paulo"));
+
+        mockMvc.perform(get("/api/v1/accounts/{number}/statement", account.number())
+                        .queryParam("startDate", today.toString())
+                        .queryParam("endDate", today.toString())
+                        .queryParam("page", "0")
+                        .queryParam("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalDeposits").value(150.00))
+                .andExpect(jsonPath("$.totalWithdrawals").value(25.00))
+                .andExpect(jsonPath("$.closingBalance").value(125.00))
+                .andExpect(jsonPath("$.page.totalElements").value(3))
+                .andExpect(jsonPath("$.page.totalPages").value(2))
+                .andExpect(jsonPath("$.page.first").value(true))
+                .andExpect(jsonPath("$.page.last").value(false))
+                .andExpect(jsonPath("$.transactions.length()").value(2));
+
+        mockMvc.perform(get("/api/v1/accounts/{number}/statement", account.number())
+                        .queryParam("startDate", today.toString())
+                        .queryParam("endDate", today.toString())
+                        .queryParam("page", "1")
+                        .queryParam("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page.first").value(false))
+                .andExpect(jsonPath("$.page.last").value(true))
+                .andExpect(jsonPath("$.transactions.length()").value(1));
+    }
+
+    @Test
+    void shouldRejectInvalidStatementPeriods() throws Exception {
+        TestAccount account = createAccount("314.159.265-90", "Cliente Período");
+        LocalDate today = LocalDate.now(ZoneId.of("America/Sao_Paulo"));
+
+        mockMvc.perform(get("/api/v1/accounts/{number}/statement", account.number())
+                        .queryParam("startDate", today.toString())
+                        .queryParam("endDate", today.minusDays(1).toString()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PERIOD"));
+
+        mockMvc.perform(get("/api/v1/accounts/{number}/statement", account.number())
+                        .queryParam("startDate", today.minusDays(366).toString())
+                        .queryParam("endDate", today.toString()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PERIOD"));
+    }
+
+    @Test
+    void shouldValidateStatementQueryParameters() throws Exception {
+        TestAccount account = createAccount("271.828.182-05", "Cliente Parâmetros");
+        LocalDate today = LocalDate.now(ZoneId.of("America/Sao_Paulo"));
+
+        mockMvc.perform(get("/api/v1/accounts/{number}/statement", account.number())
+                        .queryParam("startDate", today.toString())
+                        .queryParam("endDate", today.toString())
+                        .queryParam("page", "-1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+        mockMvc.perform(get("/api/v1/accounts/{number}/statement", account.number())
+                        .queryParam("startDate", today.toString())
+                        .queryParam("endDate", today.toString())
+                        .queryParam("size", "101"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+        mockMvc.perform(get("/api/v1/accounts/{number}/statement", account.number())
+                        .queryParam("startDate", "invalid-date")
+                        .queryParam("endDate", today.toString()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void shouldReturnNotFoundForUnknownStatementAccount() throws Exception {
+        LocalDate today = LocalDate.now(ZoneId.of("America/Sao_Paulo"));
+
+        mockMvc.perform(get("/api/v1/accounts/{number}/statement", "99999999")
+                        .queryParam("startDate", today.toString())
+                        .queryParam("endDate", today.toString()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_FOUND"));
     }
