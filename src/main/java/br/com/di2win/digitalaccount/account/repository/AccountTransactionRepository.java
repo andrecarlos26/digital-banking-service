@@ -2,15 +2,30 @@ package br.com.di2win.digitalaccount.account.repository;
 
 import br.com.di2win.digitalaccount.account.domain.AccountTransaction;
 import br.com.di2win.digitalaccount.account.domain.TransactionType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface AccountTransactionRepository extends JpaRepository<AccountTransaction, UUID> {
+
+    Page<AccountTransaction> findByAccountIdAndOccurredAtGreaterThanEqualAndOccurredAtLessThan(
+            UUID accountId,
+            Instant start,
+            Instant end,
+            Pageable pageable
+    );
+
+    Optional<AccountTransaction> findFirstByAccountIdAndOccurredAtBeforeOrderByOccurredAtDesc(
+            UUID accountId,
+            Instant instant
+    );
 
     @Query("""
             select sum(t.amount)
