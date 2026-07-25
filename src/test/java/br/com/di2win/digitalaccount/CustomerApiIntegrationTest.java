@@ -1,5 +1,6 @@
 package br.com.di2win.digitalaccount;
 
+import br.com.di2win.digitalaccount.account.repository.AccountTransactionRepository;
 import br.com.di2win.digitalaccount.account.repository.DigitalAccountRepository;
 import br.com.di2win.digitalaccount.customer.repository.CustomerRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,6 +34,9 @@ class CustomerApiIntegrationTest {
     private ObjectMapper objectMapper;
 
     @Autowired
+    private AccountTransactionRepository transactionRepository;
+
+    @Autowired
     private DigitalAccountRepository accountRepository;
 
     @Autowired
@@ -40,6 +44,7 @@ class CustomerApiIntegrationTest {
 
     @BeforeEach
     void cleanDatabase() {
+        transactionRepository.deleteAll();
         accountRepository.deleteAll();
         customerRepository.deleteAll();
     }
