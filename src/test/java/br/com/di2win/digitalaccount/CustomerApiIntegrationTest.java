@@ -1,5 +1,6 @@
 package br.com.di2win.digitalaccount;
 
+import br.com.di2win.digitalaccount.account.repository.DigitalAccountRepository;
 import br.com.di2win.digitalaccount.customer.repository.CustomerRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,10 +32,14 @@ class CustomerApiIntegrationTest {
     private ObjectMapper objectMapper;
 
     @Autowired
+    private DigitalAccountRepository accountRepository;
+
+    @Autowired
     private CustomerRepository customerRepository;
 
     @BeforeEach
     void cleanDatabase() {
+        accountRepository.deleteAll();
         customerRepository.deleteAll();
     }
 
