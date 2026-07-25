@@ -1,0 +1,30 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:di2win;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        format_sql: false
+  flyway:
+    enabled: true
+  threads:
+    virtual:
+      enabled: false
+
+di2win:
+  account:
+    agency: "0001"
+    daily-withdrawal-limit: 2000.00
+    business-timezone: America/Sao_Paulo
+
+logging:
+  level:
+    org.hibernate.SQL: WARN
