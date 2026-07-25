@@ -58,6 +58,14 @@ public class CustomerService {
                         "Cliente não encontrado", "Não existe cliente ativo com o CPF informado."));
     }
 
+    @Transactional
+    public Customer findActiveByCpfForUpdate(String rawCpf) {
+        String cpf = CpfUtils.normalize(rawCpf);
+        return customerRepository.findActiveByCpfForUpdate(cpf)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, ErrorCode.CUSTOMER_NOT_FOUND,
+                        "Cliente não encontrado", "Não existe cliente ativo com o CPF informado."));
+    }
+
     private Customer findActiveById(UUID id) {
         return customerRepository.findByIdAndActiveTrue(id)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, ErrorCode.CUSTOMER_NOT_FOUND,
