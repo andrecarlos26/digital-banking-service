@@ -5,6 +5,7 @@ import br.com.di2win.digitalaccount.customer.api.dto.CustomerResponse;
 import br.com.di2win.digitalaccount.customer.service.CustomerService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -39,5 +40,11 @@ public class CustomerController {
     @GetMapping("/{id}")
     public CustomerResponse findById(@PathVariable UUID id) {
         return customerService.findById(id);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        customerService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 }
