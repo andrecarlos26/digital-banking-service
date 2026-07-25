@@ -1,0 +1,40 @@
+@baseUrl = http://localhost:8080
+@cpf = 529.982.247-25
+@customerId = replace-me
+@accountNumber = replace-me
+
+### Create customer
+POST {{baseUrl}}/api/v1/customers
+Content-Type: application/json
+
+{
+  "name": "Maria Silva",
+  "cpf": "{{cpf}}",
+  "birthDate": "1990-01-10"
+}
+
+### Create account
+POST {{baseUrl}}/api/v1/accounts
+Content-Type: application/json
+
+{
+  "cpf": "{{cpf}}"
+}
+
+### Deposit
+POST {{baseUrl}}/api/v1/accounts/{{accountNumber}}/deposits
+Content-Type: application/json
+
+{
+  "amount": 2500.00,
+  "description": "Depósito inicial"
+}
+
+### Withdraw
+POST {{baseUrl}}/api/v1/accounts/{{accountNumber}}/withdrawals
+Content-Type: application/json
+
+{
+  "amount": 500.00,
+  "description": "Saque"
+}

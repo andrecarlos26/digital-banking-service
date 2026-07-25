@@ -1,0 +1,172 @@
+{
+  "info": {
+    "_postman_id": "90277c02-bc5b-48f0-9a63-70618cf4b508",
+    "name": "Di2win Digital Account API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "customerId",
+      "value": ""
+    },
+    {
+      "key": "accountNumber",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Customers",
+      "item": [
+        {
+          "name": "Create customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const data = pm.response.json();",
+                  "pm.collectionVariables.set('customerId', data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Maria Silva\",\n  \"cpf\": \"529.982.247-25\",\n  \"birthDate\": \"1990-01-10\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/customers"
+          }
+        },
+        {
+          "name": "Get customer",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/customers/{{customerId}}"
+          }
+        },
+        {
+          "name": "Delete customer",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/customers/{{customerId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Accounts",
+      "item": [
+        {
+          "name": "Create account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const data = pm.response.json();",
+                  "pm.collectionVariables.set('accountNumber', data.number);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cpf\": \"529.982.247-25\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/accounts"
+          }
+        },
+        {
+          "name": "Get account",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/accounts/{{accountNumber}}"
+          }
+        },
+        {
+          "name": "Get balance",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/accounts/{{accountNumber}}/balance"
+          }
+        },
+        {
+          "name": "Deposit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 2500.0,\n  \"description\": \"Depósito inicial\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/accounts/{{accountNumber}}/deposits"
+          }
+        },
+        {
+          "name": "Withdraw",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 500.0,\n  \"description\": \"Saque\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/accounts/{{accountNumber}}/withdrawals"
+          }
+        },
+        {
+          "name": "Block",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/v1/accounts/{{accountNumber}}/block"
+          }
+        },
+        {
+          "name": "Unblock",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/v1/accounts/{{accountNumber}}/unblock"
+          }
+        },
+        {
+          "name": "Statement",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/accounts/{{accountNumber}}/statement?startDate=2026-07-01&endDate=2026-07-31&page=0&size=20"
+          }
+        }
+      ]
+    }
+  ]
+}
