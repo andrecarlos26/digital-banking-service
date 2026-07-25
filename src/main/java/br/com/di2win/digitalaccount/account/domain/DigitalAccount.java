@@ -75,6 +75,13 @@ public class DigitalAccount {
         this.updatedAt = now;
     }
 
+    public BigDecimal deposit(BigDecimal amount, Instant now) {
+        ensureAvailableForTransactions();
+        balance = balance.add(amount);
+        updatedAt = now;
+        return balance;
+    }
+
     public void block(Instant now) {
         ensureActive();
         blocked = true;
@@ -95,6 +102,14 @@ public class DigitalAccount {
         blocked = true;
         closedAt = now;
         updatedAt = now;
+    }
+
+    private void ensureAvailableForTransactions() {
+        ensureActive();
+        if (blocked) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, ErrorCode.ACCOUNT_BLOCKED,
+                    "Conta bloqueada", "A conta está bloqueada para movimentações.");
+        }
     }
 
     private void ensureActive() {
