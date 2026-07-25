@@ -11,6 +11,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -72,6 +73,7 @@ public class GlobalExceptionHandler {
                 "JSON inválido", "O corpo da requisição não pôde ser interpretado.", request, null);
     }
 
+
     @ExceptionHandler({
             MissingServletRequestParameterException.class,
             MethodArgumentTypeMismatchException.class,
@@ -80,6 +82,12 @@ public class GlobalExceptionHandler {
     ResponseEntity<ProblemDetail> handleRequestParameter(Exception exception, HttpServletRequest request) {
         return build(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_ERROR,
                 "Parâmetros inválidos", "Um ou mais parâmetros da requisição são inválidos.", request, null);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    ResponseEntity<ProblemDetail> handleNoResource(NoResourceFoundException exception, HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, ErrorCode.RESOURCE_NOT_FOUND,
+                "Recurso não encontrado", "A rota solicitada não existe.", request, null);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
