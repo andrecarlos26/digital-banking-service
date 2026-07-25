@@ -7,6 +7,8 @@ import br.com.di2win.digitalaccount.account.api.dto.MoneyOperationRequest;
 import br.com.di2win.digitalaccount.account.api.dto.StatementResponse;
 import br.com.di2win.digitalaccount.account.api.dto.TransactionResponse;
 import br.com.di2win.digitalaccount.account.service.AccountService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -29,6 +31,7 @@ import java.time.LocalDate;
 @RestController
 @RequestMapping("/api/v1/accounts")
 @Validated
+@Tag(name = "Accounts", description = "Contas, saldo, movimentações e extrato")
 public class AccountController {
 
     private final AccountService accountService;
@@ -38,6 +41,7 @@ public class AccountController {
     }
 
     @PostMapping
+    @Operation(summary = "Cria uma conta a partir do CPF do cliente")
     public ResponseEntity<AccountResponse> create(@Valid @RequestBody CreateAccountRequest request) {
         AccountResponse response = accountService.create(request);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
@@ -48,26 +52,31 @@ public class AccountController {
     }
 
     @GetMapping("/{accountNumber}")
+    @Operation(summary = "Consulta dados da conta")
     public AccountResponse find(@PathVariable String accountNumber) {
         return accountService.find(accountNumber);
     }
 
     @GetMapping("/{accountNumber}/balance")
+    @Operation(summary = "Consulta saldo da conta")
     public BalanceResponse balance(@PathVariable String accountNumber) {
         return accountService.balance(accountNumber);
     }
 
     @PatchMapping("/{accountNumber}/block")
+    @Operation(summary = "Bloqueia a conta")
     public AccountResponse block(@PathVariable String accountNumber) {
         return accountService.block(accountNumber);
     }
 
     @PatchMapping("/{accountNumber}/unblock")
+    @Operation(summary = "Desbloqueia a conta")
     public AccountResponse unblock(@PathVariable String accountNumber) {
         return accountService.unblock(accountNumber);
     }
 
     @PostMapping("/{accountNumber}/deposits")
+    @Operation(summary = "Efetua depósito")
     public TransactionResponse deposit(
             @PathVariable String accountNumber,
             @Valid @RequestBody MoneyOperationRequest request
@@ -76,6 +85,7 @@ public class AccountController {
     }
 
     @PostMapping("/{accountNumber}/withdrawals")
+    @Operation(summary = "Efetua saque")
     public TransactionResponse withdraw(
             @PathVariable String accountNumber,
             @Valid @RequestBody MoneyOperationRequest request
@@ -84,6 +94,7 @@ public class AccountController {
     }
 
     @GetMapping("/{accountNumber}/statement")
+    @Operation(summary = "Emite extrato por período")
     public StatementResponse statement(
             @PathVariable String accountNumber,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,

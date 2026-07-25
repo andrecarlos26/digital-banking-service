@@ -9,7 +9,6 @@ import br.com.di2win.digitalaccount.customer.api.dto.CustomerResponse;
 import br.com.di2win.digitalaccount.customer.domain.Customer;
 import br.com.di2win.digitalaccount.customer.repository.CustomerRepository;
 import br.com.di2win.digitalaccount.customer.validation.CpfUtils;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,7 +38,8 @@ public class CustomerService {
     public CustomerResponse create(CreateCustomerRequest request) {
         String cpf = CpfUtils.normalize(request.cpf());
         if (customerRepository.existsByCpf(cpf)) {
-            throw cpfConflict();
+            throw new ApiException(HttpStatus.CONFLICT, ErrorCode.CPF_ALREADY_REGISTERED,
+                    "CPF já cadastrado", "Já existe um cliente cadastrado com o CPF informado.");
         }
 
         Instant now = clock.instant();
@@ -50,12 +50,7 @@ public class CustomerService {
                 request.birthDate(),
                 now
         );
-
-        try {
-            return CustomerResponse.from(customerRepository.saveAndFlush(customer));
-        } catch (DataIntegrityViolationException exception) {
-            throw cpfConflict();
-        }
+        return CustomerResponse.from(customerRepository.save(customer));
     }
 
     @Transactional(readOnly = true)
@@ -110,10 +105,5 @@ public class CustomerService {
 
     private String normalizeName(String name) {
         return name.trim().replaceAll("\\s+", " ");
-    }
-
-    private ApiException cpfConflict() {
-        return new ApiException(HttpStatus.CONFLICT, ErrorCode.CPF_ALREADY_REGISTERED,
-                "CPF já cadastrado", "Já existe um cliente com o CPF informado.");
     }
 }

@@ -3,6 +3,8 @@ package br.com.di2win.digitalaccount.customer.api;
 import br.com.di2win.digitalaccount.customer.api.dto.CreateCustomerRequest;
 import br.com.di2win.digitalaccount.customer.api.dto.CustomerResponse;
 import br.com.di2win.digitalaccount.customer.service.CustomerService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -19,6 +21,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/customers")
+@Tag(name = "Customers", description = "Cadastro e remoção de clientes")
 public class CustomerController {
 
     private final CustomerService customerService;
@@ -28,6 +31,7 @@ public class CustomerController {
     }
 
     @PostMapping
+    @Operation(summary = "Cria um cliente")
     public ResponseEntity<CustomerResponse> create(@Valid @RequestBody CreateCustomerRequest request) {
         CustomerResponse response = customerService.create(request);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
@@ -38,11 +42,13 @@ public class CustomerController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Consulta um cliente ativo")
     public CustomerResponse findById(@PathVariable UUID id) {
         return customerService.findById(id);
     }
 
     @DeleteMapping("/{id}")
+    @Operation(summary = "Remove logicamente um cliente")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         customerService.delete(id);
         return ResponseEntity.noContent().build();
