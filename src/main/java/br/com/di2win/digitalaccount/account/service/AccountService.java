@@ -23,10 +23,13 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Service
 public class AccountService {
+
+    private static final BigDecimal ZERO = new BigDecimal("0.00");
 
     private final DigitalAccountRepository accountRepository;
     private final AccountTransactionRepository transactionRepository;
@@ -109,6 +112,46 @@ public class AccountService {
                 now
         );
         return TransactionResponse.from(transactionRepository.save(transaction), accountNumber);
+    }
+
+    @Transactional
+    public TransactionResponse withdraw(String accountNumber, MoneyOperationRequest request) {
+        DigitalAccount account = findByNumberForUpdate(accountNumber);
+        BigDecimal amount = normalizeAmount(request.amount());
+        validateDailyWithdrawalLimit(account, amount);
+
+        Instant now = clock.instant();
+        BigDecimal balanceAfter = account.withdraw(amount, now);
+        AccountTransaction transaction = new AccountTransaction(
+                UUID.randomUUID(),
+                account,
+                TransactionType.WITHDRAWAL,
+                amount,
+                balanceAfter,
+                normalizeDescription(request.description()),
+                now
+        );
+        return TransactionResponse.from(transactionRepository.save(transaction), accountNumber);
+    }
+
+    private void validateDailyWithdrawalLimit(DigitalAccount account, BigDecimal amount) {
+        LocalDate businessDate = LocalDate.now(clock);
+        Instant start = businessDate.atStartOfDay(properties.businessTimezone()).toInstant();
+        Instant end = businessDate.plusDays(1).atStartOfDay(properties.businessTimezone()).toInstant();
+        BigDecimal withdrawnToday = sum(account.getId(), TransactionType.WITHDRAWAL, start, end);
+
+        if (withdrawnToday.add(amount).compareTo(properties.dailyWithdrawalLimit()) > 0) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    ErrorCode.DAILY_WITHDRAWAL_LIMIT_EXCEEDED,
+                    "Limite diário de saque excedido",
+                    "O saque excede o limite diário configurado de R$ "
+                            + properties.dailyWithdrawalLimit().setScale(2, RoundingMode.UNNECESSARY) + ".");
+        }
+    }
+
+    private BigDecimal sum(UUID accountId, TransactionType type, Instant start, Instant end) {
+        BigDecimal value = transactionRepository.sumAmountByTypeAndPeriod(accountId, type, start, end);
+        return value == null ? ZERO : value.setScale(2, RoundingMode.UNNECESSARY);
     }
 
     private BigDecimal normalizeAmount(BigDecimal amount) {
