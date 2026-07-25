@@ -82,6 +82,17 @@ public class DigitalAccount {
         return balance;
     }
 
+    public BigDecimal withdraw(BigDecimal amount, Instant now) {
+        ensureAvailableForTransactions();
+        if (balance.compareTo(amount) < 0) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, ErrorCode.INSUFFICIENT_FUNDS,
+                    "Saldo insuficiente", "A conta não possui saldo suficiente para o saque.");
+        }
+        balance = balance.subtract(amount);
+        updatedAt = now;
+        return balance;
+    }
+
     public void block(Instant now) {
         ensureActive();
         blocked = true;
