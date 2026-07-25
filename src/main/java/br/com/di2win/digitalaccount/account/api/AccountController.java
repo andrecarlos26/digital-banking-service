@@ -66,4 +66,12 @@ public class AccountController {
     ) {
         return accountService.deposit(accountNumber, request);
     }
+
+    @PostMapping("/{accountNumber}/withdrawals")
+    public TransactionResponse withdraw(
+            @PathVariable String accountNumber,
+            @Valid @RequestBody MoneyOperationRequest request
+    ) {
+        return accountService.withdraw(accountNumber, request);
+    }
 }
