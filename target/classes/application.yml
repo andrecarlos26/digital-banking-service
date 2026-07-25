@@ -47,6 +47,13 @@ management:
         enabled: true
       show-details: when_authorized
 
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+  api-docs:
+    path: /v3/api-docs
+
 di2win:
   account:
     agency: ${ACCOUNT_AGENCY:0001}
