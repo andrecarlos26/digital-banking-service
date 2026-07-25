@@ -68,8 +68,28 @@ public class AccountService {
         return BalanceResponse.from(findByNumber(accountNumber), clock.instant());
     }
 
+    @Transactional
+    public AccountResponse block(String accountNumber) {
+        DigitalAccount account = findByNumberForUpdate(accountNumber);
+        account.block(clock.instant());
+        return AccountResponse.from(account, properties.dailyWithdrawalLimit());
+    }
+
+    @Transactional
+    public AccountResponse unblock(String accountNumber) {
+        DigitalAccount account = findByNumberForUpdate(accountNumber);
+        account.unblock(clock.instant());
+        return AccountResponse.from(account, properties.dailyWithdrawalLimit());
+    }
+
     private DigitalAccount findByNumber(String accountNumber) {
         return accountRepository.findByNumber(accountNumber)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, ErrorCode.ACCOUNT_NOT_FOUND,
+                        "Conta não encontrada", "Não existe conta com o número informado."));
+    }
+
+    private DigitalAccount findByNumberForUpdate(String accountNumber) {
+        return accountRepository.findByNumberForUpdate(accountNumber)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, ErrorCode.ACCOUNT_NOT_FOUND,
                         "Conta não encontrada", "Não existe conta com o número informado."));
     }
